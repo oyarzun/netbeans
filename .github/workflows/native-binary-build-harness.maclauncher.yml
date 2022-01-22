@@ -1,0 +1,114 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# ----------------------
+#
+#  This workflow builds the native binaries for macos macOS harness launcher
+#  from the swift source code
+#  hosted in harness/apisupport.harness/macosx-launcher-src.
+#
+#  The following builds are made:
+#    - On a MacOS x86_64 host:
+#          - MacOS x86_64 and arm64 binary
+#
+#  ..meaning we build both x86_64 and arm64 binaries on x86_64 hosts.
+#
+#  The result of the build is file 'macos-harness-launcher-external-binaries-ASF.zip'
+#  which can be downloaded from the GitHub Actions UI and then uploaded
+#  to https://netbeans.osuosl.org/binaries/ so as to be used up by the
+#  Ant build scripts for the NetBeans distribution.
+#
+# ----------------------
+
+
+
+name: macOS Platform Launcher build
+
+
+on:
+  # Triggers the workflow on push or pull request events but only for
+  # relevant paths
+  push:
+    paths:
+      - .github/workflows/native-binary-build-harness.maclauncher.y*
+      - harness/apisupport.harness/macosx-launcher-src/**
+
+  pull_request:
+    paths:
+      - .github/workflows/native-binary-build-harness.maclauncher.y*
+      - harness/apisupport.harness/macosx-launcher-src/**
+
+  # Allows you to run this workflow manually from the Actions tab in GitHub UI
+  workflow_dispatch:
+
+
+
+jobs:
+  build-macos:
+
+    runs-on: macos-11
+
+    steps:
+    # Step 1
+    #   Checkout source code from repository
+    #
+    - name: Checkout source code
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+    #
+    # Step 2
+    #   Build the native binaries from swift source code
+    #
+    - name: Build macOS platform launcher
+      run: swift build --configuration release --arch arm64 --arch x86_64
+      working-directory: harness/apisupport.harness/macosx-launcher-src
+    #
+    # Step 3
+    #   Create dir structure and BUILDINFO
+    #
+    - name: Create dir structure and BUILDINFO
+      run: |
+         mkdir -p bin
+         mv .build/apple/Products/Release/AppLauncher bin/
+         BUILDINFO="BUILDINFO.txt"
+         touch "$BUILDINFO"
+         echo "Apache NetBeans"                                                >> "$BUILDINFO"
+         echo ""                                                               >> "$BUILDINFO"
+         echo "macOS Platform launcher"                                        >> "$BUILDINFO"
+         echo "Build by GitHub Actions Workflow: ${GITHUB_WORKFLOW}"           >> "$BUILDINFO"
+         echo ""                                                               >> "$BUILDINFO"
+         echo "Build from:"                                                    >> "$BUILDINFO"
+         echo "   Git repo       : ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"  >> "$BUILDINFO"
+         echo "   Git commit SHA : ${GITHUB_SHA}"                              >> "$BUILDINFO"
+         echo "   Git ref        : ${GITHUB_REF}"                              >> "$BUILDINFO"
+         echo ""                                                               >> "$BUILDINFO"
+         echo "Build time UTC : $(date -u +"%Y-%m-%d %H:%M:%S+00:00")"         >> "$BUILDINFO"
+         echo ""
+      working-directory: harness/apisupport.harness/macosx-launcher-src
+    #
+    # Step 4
+    #   Upload build artifact to GitHub
+    #
+    - name: Upload macOS platform launcher
+      uses: actions/upload-artifact@v2
+      with:
+        name: macos-plaform-launcher-ASF
+        path: |
+          harness/apisupport.harness/macosx-launcher-src/bin
+          harness/apisupport.harness/macosx-launcher-src/BUILDINFO.txt
+        if-no-files-found: error
