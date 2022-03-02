@@ -77,6 +77,19 @@
         </exec>
         <copy file="../../../../../../nb/ide.launcher/macosx/.build/release/NetBeansLauncher" tofile="${appdir}/Contents/MacOS/netbeans"/>
         <chmod file="${appdir}/Contents/MacOS/netbeans" perm="755"/>
+        
+        <loadfile property="app_iden_name" srcFile="${app.sign.idname}" quiet="true">
+            <filterchain>
+               <striplinebreaks/>
+            </filterchain>
+        </loadfile>
+        <condition property="codesign.arg" value="echo 'skip signing app'" else="codesign -s ${app_iden_name} ${appdir}">
+            <equals arg1="${app.sign.idname}" arg2="0"/>
+        </condition>
+        <exec executable="sh" failonerror="yes">
+            <arg value="-c"/>
+            <arg value="${codesign.arg}"/>
+        </exec>
     </target>
     
     <target name="build-pkg" depends="init, build-app">
